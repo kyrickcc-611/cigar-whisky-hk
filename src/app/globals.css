@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0b0a0d;
+  --foreground: #ede9e3;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    color: var(--foreground);
+    background-color: var(--background);
+    /* 淡淡琥珀光暈，營造酒吧氛圍 */
+    background-image: radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(200, 132, 42, 0.16),
+      transparent 70%
+    );
+    background-repeat: no-repeat;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: rgba(200, 132, 42, 0.35);
+  }
+}
+
+@layer components {
+  /* 主要按鈕 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* 次要按鈕 */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-surface-border bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-brand-500/60 hover:text-brand-300 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* 卡片容器 */
+  .card {
+    @apply rounded-xl border border-surface-border bg-surface p-4 shadow-card;
+  }
+
+  /* 表單欄位 */
+  .input {
+    @apply w-full rounded-lg border border-surface-border bg-[#100f13] px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/50;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-zinc-300;
+  }
+
+  /* 小標籤 */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-surface-border bg-surface-raised px-2.5 py-0.5 text-xs text-zinc-300;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
