@@ -267,32 +267,42 @@ reports/{reportId}                 → Phase 8
 
 ---
 
-## 推送到 GitHub
+## GitHub 與帳戶（Phase 0 已完成推送）
 
-專案已包含 `.gitignore`（`.env*.local`、`node_modules`、`.next` 都會被排除）。
+本專案刻意使用**獨立的 GitHub 帳戶**，與其他專案完全分開：
 
-### 方法 A：用 GitHub CLI（最快，已偵測到你有 `gh` 2.97）
+| 項目 | 值 |
+|---|---|
+| 遠端 repo | <https://github.com/kyrickcc-611/cigar-whisky-hk>（private） |
+| 推送帳戶 | `kyrickcc-611`（GitHub CLI 活躍帳戶） |
+| commit 身份 | repo-local：`kyrickcc-611 <354919355+kyrickcc-611@users.noreply.github.com>` |
+| 預設分支 | `main`（已追蹤 `origin/main`） |
+
+### 多 GitHub 帳戶共存（重要）
+
+本機同時登入了兩個帳戶：`kyrickcc-611`（本專案）與 `DonKHK`（其他專案）。
+
+| 目的 | 命令 |
+|---|---|
+| 睇有邊幾個帳戶、邊個活躍 | `gh auth status` |
+| 切換活躍帳戶 | `gh auth switch --user kyrickcc-611` |
+| 重新設定 git 憑證助手 | `gh auth setup-git` |
+| 查看當前 commit 身份 | `git config --local --get user.email` |
+
+- **commit 身份是 repo-local**（存在 `.git/config`），不會影響其他專案的全域 `DonKHK` 設定。
+- Windows 憑證管理員原本存有 `git:https://github.com` → `DonKHK` 的記錄，已刪除；現在憑證由
+  `gh auth git-credential` 按**活躍帳戶**提供。
+- 若日後 push 突然變成推到錯誤帳戶：先 `gh auth switch --user <正確帳戶>`，
+  再用 `gh auth status` 確認該帳戶顯示 `Active account: true`。
+
+### 在新機器上重建（參考）
 
 ```bash
-# 於專案根目錄執行
-git init -b main
-git add .
-git commit -m "chore: Phase 0 - project scaffold, types and shared libs"
-
-# 建立 GitHub repo 並推送（private 可改 --public）
-gh repo create cigar-whisky-hk --private --source=. --remote=origin --push
-```
-
-### 方法 B：先在 GitHub 網站建立空 repo，再用 remote 推送
-
-```bash
-git init -b main
-git add .
-git commit -m "chore: Phase 0 - project scaffold, types and shared libs"
-
-git remote add origin https://github.com/<你的帳號>/cigar-whisky-hk.git
-git branch -M main
-git push -u origin main
+git clone https://github.com/kyrickcc-611/cigar-whisky-hk.git
+cd cigar-whisky-hk
+npm install
+git config user.name "kyrickcc-611"
+git config user.email "354919355+kyrickcc-611@users.noreply.github.com"
 ```
 
 ### 日常提交
@@ -303,8 +313,10 @@ git commit -m "feat(bars): 完成酒吧列表與搜尋篩選"
 git push
 ```
 
-> ⚠️ 提交前務必確認 `.env.local` **沒有**被加入（`git status` 應看不到它）。
-> 如不小心推送了金鑰，請即到 Firebase Console 撤銷／重新產生 API key。
+> ⚠️ 提交前務必確認 `.env.local` **沒有**被加入。
+> `.gitignore` 已排除 `.env`、`.env*.local`、`.firebase/`、`*-debug.log`、
+> `*serviceAccount*.json`、`*-firebase-adminsdk-*.json`。
+> 如不小心推送了 service account 金鑰，請即到 Google Cloud Console **刪除該金鑰**（撤銷 API key 並不足夠）。
 
 ---
 
