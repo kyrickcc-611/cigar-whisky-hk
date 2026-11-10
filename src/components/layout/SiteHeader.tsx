@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { UserMenu } from '@/components/auth/UserMenu';
 import { SITE_NAME } from '@/lib/constants';
 
 const NAV_LINKS = [
@@ -9,7 +10,7 @@ const NAV_LINKS = [
 
 /**
  * 全站頁首。
- * Phase 1 會在此加入 UserMenu（頭像、登出、Admin 入口、收藏數）。
+ * 右側 UserMenu 會依登入狀態顯示「登入／註冊」或頭像選單（收藏、後台、登出）。
  */
 export function SiteHeader() {
   return (
@@ -42,9 +43,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/login" className="btn-secondary">
-            登入
-          </Link>
+          <UserMenu />
         </div>
       </div>
 

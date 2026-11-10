@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { VerifyEmailBanner } from '@/components/auth/VerifyEmailBanner';
+import { AuthProvider } from '@/context/AuthProvider';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
@@ -39,9 +41,12 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant-HK">
       <body className="flex min-h-screen flex-col font-sans antialiased">
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
+        <AuthProvider>
+          <SiteHeader />
+          <VerifyEmailBanner />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </AuthProvider>
       </body>
     </html>
   );

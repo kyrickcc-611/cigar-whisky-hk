@@ -1,0 +1,70 @@
+rules_version = '2';
+
+// ===========================================================================
+// Cigar & Whisky HK — Firebase Storage Security Rules
+// ---------------------------------------------------------------------------
+// 路徑約定：
+//   bars/{barId}/**           → 只有 superadmin 可寫（酒吧照片）
+//   reviews/{uid}/**          → 已驗證用戶可寫自己的資料夾（感想照片）
+//   posts/{uid}/**            → 已驗證用戶可寫自己的資料夾（貼文照片）
+//   users/{uid}/**            → 用戶可寫自己的頭像
+// 全部檔案公開可讀（圖片要能顯示在網頁上）
+// ===========================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    // 圖片上傳限制：型別 + 大小
+    function isValidImage() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|webp|avif)')
+        && request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // 酒吧照片：只有 superadmin
+    match /bars/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isValidImage() && isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // 感想照片：只能寫入自己的資料夾
+    match /reviews/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isValidImage() && isVerified() && request.auth.uid == uid;
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // 貼文照片：只能寫入自己的資料夾
+    match /posts/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isValidImage() && isVerified() && request.auth.uid == uid;
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // 頭像：只能寫入自己的資料夾
+    match /users/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isValidImage() && isSignedIn() && request.auth.uid == uid;
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // 其他路徑一律拒絕
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

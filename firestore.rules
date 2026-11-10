@@ -1,0 +1,149 @@
+rules_version = '2';
+
+// ===========================================================================
+// Cigar & Whisky HK — Firestore Security Rules
+// ---------------------------------------------------------------------------
+// 權限唯一來源：users/{uid}.role == 'superadmin'（用戶不可自行修改 role）
+// 設計原則：未明確允許的一律拒絕（default deny）
+// ===========================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- 工具函數
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function userDoc(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && exists(userDoc(request.auth.uid))
+        && get(userDoc(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    // 用戶投票時只准改動 bars 的兩個計數欄位，每次最多 ±1，
+    // 而且同一批次必須寫入自己的 votes/{uid}（防止刷數字）
+    function isVoteCounterUpdate(barId) {
+      return isVerified()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'dislikes'])
+        && request.resource.data.likes - resource.data.likes <= 1
+        && request.resource.data.likes - resource.data.likes >= -1
+        && request.resource.data.dislikes - resource.data.dislikes <= 1
+        && request.resource.data.dislikes - resource.data.dislikes >= -1
+        && existsAfter(/databases/$(database)/documents/bars/$(barId)/votes/$(request.auth.uid));
+    }
+
+    // ------------------------------------------------------------------ users
+    match /users/{uid} {
+      // 公開 profile（感想／貼文會顯示暱稱與頭像）
+      allow read: if true;
+
+      allow create: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role == 'user'
+        && request.resource.data.favorites is list
+        && request.resource.data.keys().hasOnly([
+             'uid', 'email', 'displayName', 'photoURL', 'role',
+             'favorites', 'createdAt', 'updatedAt'
+           ]);
+
+      // 用戶可更新自己的 profile，但不可改 role / uid / createdAt
+      allow update: if isSuperAdmin()
+        || (isSelf(uid)
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.createdAt == resource.data.createdAt);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------------- bars
+    match /bars/{barId} {
+      allow read: if resource.data.isActive == true || isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || isVoteCounterUpdate(barId);
+      allow delete: if isSuperAdmin();
+
+      // 一人一票：value = 1 (like) 或 -1 (dislike)
+      match /votes/{uid} {
+        allow read: if true;
+
+        allow create: if isVerified() && isSelf(uid)
+          && request.resource.data.value in [1, -1]
+          && request.resource.data.keys().hasOnly(['value', 'updatedAt']);
+
+        allow update: if isVerified() && isSelf(uid)
+          && request.resource.data.value in [1, -1]
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['value', 'updatedAt']);
+
+        allow delete: if isSelf(uid);
+      }
+    }
+
+    // ---------------------------------------------------------------- reviews
+    match /reviews/{reviewId} {
+      allow read: if resource.data.status == 'published'
+        || isSuperAdmin()
+        || isSelf(resource.data.userId);
+
+      allow create: if isVerified()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'published'
+        && request.resource.data.images.size() <= 6
+        && request.resource.data.content is string
+        && request.resource.data.content.size() >= 10
+        && request.resource.data.content.size() <= 2000;
+
+      allow update: if isSuperAdmin()
+        || (isVerified()
+            && isSelf(resource.data.userId)
+            && request.resource.data.userId == resource.data.userId
+            && request.resource.data.barId == resource.data.barId
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.images.size() <= 6);
+
+      allow delete: if isSuperAdmin() || isSelf(resource.data.userId);
+    }
+
+    // ------------------------------------------------------------------ posts
+    match /posts/{postId} {
+      allow read: if resource.data.status == 'published'
+        || isSuperAdmin()
+        || isSelf(resource.data.userId);
+
+      allow create: if isVerified()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'published'
+        && request.resource.data.images.size() <= 4
+        && request.resource.data.content is string
+        && request.resource.data.content.size() >= 1
+        && request.resource.data.content.size() <= 2000;
+
+      allow update: if isSuperAdmin()
+        || (isVerified()
+            && isSelf(resource.data.userId)
+            && request.resource.data.userId == resource.data.userId
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.images.size() <= 4);
+
+      allow delete: if isSuperAdmin() || isSelf(resource.data.userId);
+    }
+
+    // 其他路徑一律拒絕
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
