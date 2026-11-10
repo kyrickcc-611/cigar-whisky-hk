@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "preview:static": "firebase serve --only hosting"
   },
   "dependencies": {
     "@vis.gl/react-google-maps": "^1.10.2",

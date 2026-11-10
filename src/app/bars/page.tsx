@@ -1,14 +1,15 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { BarsBrowser } from '@/components/bars/BarsBrowser';
 
 export const metadata: Metadata = { title: '尋找酒吧' };
 
-interface BarsPageProps {
-  searchParams?: { q?: string; district?: string; type?: string; openNow?: string };
-}
-
-/** 酒吧列表（首頁的搜尋表單及快速連結會帶 query 參數到這裡） */
-export default function BarsPage({ searchParams }: BarsPageProps) {
+/**
+ * 酒吧列表（首頁的搜尋表單及快速連結會帶 query 參數到這裡）。
+ * 篩選條件改由 BarsBrowser 以 useSearchParams() 讀取 ——
+ * 靜態匯出（Firebase Hosting）不支援 server 端的 searchParams。
+ */
+export default function BarsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <header className="mb-6">
@@ -18,12 +19,15 @@ export default function BarsPage({ searchParams }: BarsPageProps) {
         </p>
       </header>
 
-      <BarsBrowser
-        initialKeyword={searchParams?.q ?? ''}
-        initialDistrict={searchParams?.district ?? 'all'}
-        initialType={searchParams?.type ?? 'all'}
-        initialOpenNow={searchParams?.openNow === '1'}
-      />
+      <Suspense
+        fallback={
+          <p className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-400">
+            正在載入酒吧…
+          </p>
+        }
+      >
+        <BarsBrowser />
+      </Suspense>
     </div>
   );
 }

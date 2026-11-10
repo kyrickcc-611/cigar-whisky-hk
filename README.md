@@ -18,7 +18,7 @@
 | 檔案 | 圖片以「貼網址」方式儲存（Firebase Storage 需 Blaze 方案，待升級後可一鍵切換） |
 | 地圖 | Google Maps JavaScript API（`@vis.gl/react-google-maps`） |
 | 驗證 | Zod（表單與資料驗證） |
-| 部署 | Vercel |
+| 部署 | Firebase Hosting（Next.js 靜態匯出），備選 GitHub Pages |
 | 版本控制 | GitHub |
 
 ## 架構決策（重要）
@@ -33,7 +33,7 @@
 
 原因：
 
-1. **零伺服器密鑰** —— 前端只需 `NEXT_PUBLIC_*` 變數，不需要 service account JSON，Vercel 部署零額外設定。
+1. **零伺服器密鑰** —— 前端只需 `NEXT_PUBLIC_*` 變數，不需要 service account JSON，靜態部署（Firebase Hosting）零額外設定。
 2. **即時同步** —— Firestore 的 `onSnapshot` 可讓 Like 數、新感想即時更新。
 3. **安全靠規則** —— 所有寫入權限由 `firestore.rules` / `storage.rules` 決定：
    - 只有本人可改自己的 `users/{uid}`，且 `role` 不可自行提升
@@ -80,13 +80,18 @@ cp .env.local.example .env.local
 ### 4. 啟動
 
 ```bash
-npm run dev       # http://localhost:3000
-npm run build     # production build（含 TypeScript 型別檢查）
-npm run lint      # ESLint
-npm run typecheck # 只做型別檢查
+npm run dev           # http://localhost:3000
+npm run build         # 生產建置（含 TypeScript 型別檢查）；靜態匯出到 out/
+npm run preview:static # 用 Firebase Hosting 模擬器預覽 out/（http://localhost:5000）
+npm run lint          # ESLint
+npm run typecheck     # 只做型別檢查
 ```
 
 若未填 `.env.local`，首頁會顯示琥珀色提示卡（不會白畫面）。
+
+> `.env.production` 已設 `NEXT_STATIC_EXPORT=1`，所以 `npm run build` 會輸出靜態檔到 `out/`
+> 供 Firebase Hosting 使用；此模式下 `npm start`（Next.js server）不適用，請改用
+> `npm run preview:static`。詳見「部署（Firebase Hosting，靜態匯出）」。
 
 ---
 
@@ -107,8 +112,8 @@ npm run typecheck # 只做型別檢查
    - **電子郵件/密碼**（Email/Password）：必須（已完成）
    - **Google**：可選；啟用後把 `.env.local` 的 `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN` 設為 `true`
      （預設 `false`，登入頁不會顯示 Google 按鈕，避免按下後報 `auth/operation-not-allowed`）
-3. 到 **Settings → Authorized domains**（授權網域）確認有 `localhost`；
-   日後部署 Vercel 後要把 `xxx.vercel.app` 及自訂網域加入
+3. 到 **Settings → Authorized domains**（授權網域）確認有 `localhost` 及 `cigar-kyric.web.app`；
+   如日後加自訂網域／GitHub Pages，記得一併加入
 
 ### 3. 啟用 Storage
 
@@ -178,7 +183,8 @@ REST 寫入 `users/{uid}.role`，**不需要 service account 私鑰**。
 4. 編輯該 key：
    - **Application restrictions** → `HTTP referrers (web sites)`
      - `http://localhost:3000/*`
-     - `https://*.vercel.app/*`
+     - `https://cigar-kyric.web.app/*`
+     - `https://cigar-kyric.firebaseapp.com/*`
      - `https://你的網域/*`
    - **API restrictions** → 只勾選 Maps JavaScript API（及 Places API）
 5. 填入 `.env.local` 的 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
@@ -193,9 +199,10 @@ REST 寫入 `users/{uid}.role`，**不需要 service account 私鑰**。
 ver1 20261110/
 ├─ .env.local.example          # 環境變數範本（可 commit）
 ├─ .env.local                  # 你的真實金鑰（已在 .gitignore）
-├─ next.config.mjs             # next/image 允許 Firebase Storage 網域
+├─ .env.production             # 生產建置開關 NEXT_STATIC_EXPORT=1（無密鑰，可 commit）
+├─ next.config.mjs             # 靜態匯出開關、basePath、next/image 允許網域
 ├─ tailwind.config.ts          # 深色主題、品牌色、共用陰影
-├─ firebase.json               # （Phase 1）Rules / Indexes 部署設定
+├─ firebase.json               # Rules／Indexes／Hosting（public: out）部署設定
 ├─ firestore.rules             # （Phase 1）Firestore 權限規則
 ├─ firestore.indexes.json      # （Phase 1）複合索引
 ├─ storage.rules               # （Phase 1）Storage 權限規則
@@ -205,7 +212,7 @@ ver1 20261110/
    │  ├─ layout.tsx            # 全域佈局（頁首／頁尾／metadata）
    │  ├─ page.tsx              # 首頁
    │  ├─ globals.css           # Tailwind + 主題 + 共用 class
-   │  ├─ bars/                 # 列表 + /bars/[id] 詳情（Phase 3 部分完成）
+   │  ├─ bars/                 # /bars 列表 + /bars/detail?id= 詳情（Phase 3 部分完成）
    │  ├─ login/ register/ forgot-password/   # 認證（Phase 1 完成）
    │  └─ admin/                # 後台：儀表板、酒吧管理、新增／編輯（Phase 2 完成）
    ├─ components/
@@ -213,7 +220,7 @@ ver1 20261110/
    │  ├─ ui/                   # 通用元件（ComingSoon…）
    │  ├─ bars/                 # BarCard、BarsBrowser、BarDetail
    │  ├─ reviews/              # 感想與相片上傳（Phase 5）
-   │  └─ admin/                # AdminGuard、BarForm、ImageUrlField
+   │  └─ admin/                # AdminGuard、BarForm、ImageUrlField、EditBarLoader
    ├─ lib/
    │  ├─ firebase/             # client.ts、auth.ts、authErrors.ts
    │  ├─ repositories/         # Firestore 讀寫：users.ts、bars.ts
@@ -285,9 +292,9 @@ Firebase Storage 需要 Blaze 方案才能建立 bucket，故現階段後台以�
 | `/admin` | 儀表板：酒吧總數、已公開／已下架數量、最近新增 |
 | `/admin/bars` | 清單：關鍵字搜尋、狀態篩選、上架／下架、刪除 |
 | `/admin/bars/new` | 新增酒吧（基本資料、地址與位置、營業時間、介紹與特色、圖片） |
-| `/admin/bars/[id]/edit` | 編輯（同一份 `BarForm`） |
+| `/admin/bars/edit?id=<barId>` | 編輯（同一份 `BarForm`） |
 
-- 權限雙重保護：`AdminGuard` 只負責 UX（未登入會轉去 `/login?redirect=/admin`），
+- 權限雙重保護：`AdminGuard` 只負責 UX（未登入會轉去 `/login?redirect=<原網址>`，含 query 參數），
   真正防線是 `firestore.rules` 的 `isSuperAdmin()`
 - 表單驗證（`src/lib/validators/bar.ts`）：名稱 1–80 字、類型／地區／標籤白名單、
   香港座標範圍（緯度 22.15–22.56、經度 113.83–114.44）、7 日 `HH:mm` 營業時間（允許跨午夜）、最多 8 張圖片
@@ -306,7 +313,7 @@ Firebase Storage 需要 Blaze 方案才能建立 bucket，故現階段後台以�
 | Phase 6 | 收藏、個人頁、貼文動態 | ⏳ |
 | Phase 7 | Admin 審核、統計 Dashboard | ⏳ |
 | Phase 8 | i18n、舉報、活動、PWA、WhatsApp 分享 | ⏳ |
-| Phase 9 | Vercel 部署、GitHub 推送 | ⏳ |
+| Phase 9 | Firebase Hosting 靜態部署、GitHub 推送 | ✅ 已上線 <https://cigar-kyric.web.app> |
 
 ---
 
@@ -363,23 +370,53 @@ git push
 
 ---
 
-## 部署到 Vercel
+## 部署（Firebase Hosting，靜態匯出）
 
-1. 到 <https://vercel.com/new> → **Import Git Repository** → 選 `cigar-whisky-hk`
-2. Framework Preset 會自動偵測為 **Next.js**，Build Command / Output 保持預設
-3. **Environment Variables** 逐項加入（Production + Preview 都要）：
-   - `NEXT_PUBLIC_FIREBASE_API_KEY`
-   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-   - `NEXT_PUBLIC_FIREBASE_APP_ID`
-   - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
-   - `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN`（設 `true` 才顯示 Google 登入按鈕）
-4. **Deploy**
-5. 部署完成後，回到 Firebase Console：
-   - **Authentication → Settings → Authorized domains** 加入 `xxx.vercel.app`（及自訂網域）
-   - Google Cloud API key 的 HTTP referrer 加入 `https://xxx.vercel.app/*`
+網站以 **Next.js 靜態匯出**（`output: 'export'`）部署到 Firebase Hosting，不需要伺服器或 Vercel 帳戶。
+已上線網址：<https://cigar-kyric.web.app>
+
+### 為何可以靜態匯出
+
+本專案是「純 Client SDK」架構（見架構決策），所有資料都在瀏覽器直接讀寫 Firestore，
+沒有 API Route、Server Action、middleware 或 server-side 資料抓取，所以整站可預先產生 HTML。
+
+代價：靜態匯出不支援動態路由 `[id]`，故詳情／編輯頁改用 query 參數：
+
+| 舊網址 | 新網址 |
+|---|---|
+| `/bars/[id]` | `/bars/detail?id=<barId>` |
+| `/admin/bars/[id]/edit` | `/admin/bars/edit?id=<barId>` |
+
+列表頁篩選亦改由 `useSearchParams()` 讀取：
+`/bars?q=whisky&district=central&type=both&openNow=1&sort=rating`
+
+### 建置與部署
+
+```bash
+npm run build          # .env.production 已設 NEXT_STATIC_EXPORT=1 → 輸出 out/
+npm run preview:static # 本機預覽（Firebase Hosting 模擬器，http://localhost:5000）
+firebase deploy --only hosting   # 部署到 https://cigar-kyric.web.app
+```
+
+- `firebase.json` 的 `hosting.public` 指向 `out`，`/_next/static/**` 設一年 immutable 快取
+- 每頁已預先輸出為 `目錄/index.html`（`trailingSlash: true`），因此不需要 rewrite 規則
+- 靜態模式下 `npm start`（Next.js server）不適用，請用 `npm run preview:static`
+- `NEXT_PUBLIC_*` 會在 build 時寫死進 JS，所以建置機器必須有 `.env.local`
+  （`.env.local` 不會 commit；CI 上請用 Secrets 注入）
+- Firebase Auth 的 Authorized domains 已包含 `cigar-kyric.web.app`
+
+### 改回 SSR（可選）
+
+把 `.env.production` 的 `NEXT_STATIC_EXPORT` 改成 `0`（或刪除該行），`next.config.mjs` 便不會啟用
+`output: 'export'`，之後可部署到任何支援 Node.js 的平台。
+
+### 同時部署到 GitHub Pages（可選）
+
+```powershell
+$env:NEXT_PUBLIC_BASE_PATH='/cigar-whisky-hk'; npm run build
+```
+
+`out/` 內的連結與資源會自動加上 `/cigar-whisky-hk` 前綴（同時要處理 404.html 與 `.nojekyll`）。
 
 ---
 

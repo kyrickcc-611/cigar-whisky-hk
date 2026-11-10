@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, RotateCcw, Search } from 'lucide-react';
 import { BarCard } from '@/components/bars/BarCard';
 import { BAR_TYPES, DISTRICTS } from '@/lib/constants';
@@ -12,31 +13,38 @@ import type { Bar } from '@/types';
 
 type SortOption = 'default' | 'rating' | 'likes';
 
-interface BarsBrowserProps {
-  initialKeyword?: string;
-  initialDistrict?: string;
-  initialType?: string;
-  initialOpenNow?: boolean;
+/** 只接受合法排序值，防止網址亂填入奇怪數值 */
+function readSortOption(value: string | null): SortOption {
+  return value === 'rating' || value === 'likes' ? value : 'default';
 }
 
 /**
  * 酒吧瀏覽器（Phase 2 版本）：關鍵字、地區、類型、營業中篩選 + 基本排序。
+ * 篩選條件由 useSearchParams() 讀取（靜態匯出支援），首頁／頁尾的連結可直接帶參數。
  * Phase 3 會再加上距離排序（手機定位）與地圖模式。
  */
-export function BarsBrowser({
-  initialKeyword = '',
-  initialDistrict = 'all',
-  initialType = 'all',
-  initialOpenNow = false,
-}: BarsBrowserProps) {
+export function BarsBrowser() {
+  const searchParams = useSearchParams();
+  const paramsKey = searchParams.toString();
+
   const [bars, setBars] = useState<Bar[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [keyword, setKeyword] = useState(initialKeyword);
-  const [district, setDistrict] = useState(initialDistrict);
-  const [type, setType] = useState(initialType);
-  const [openNowOnly, setOpenNowOnly] = useState(initialOpenNow);
-  const [sortBy, setSortBy] = useState<SortOption>('default');
+  const [keyword, setKeyword] = useState(() => searchParams.get('q') ?? '');
+  const [district, setDistrict] = useState(() => searchParams.get('district') ?? 'all');
+  const [type, setType] = useState(() => searchParams.get('type') ?? 'all');
+  const [openNowOnly, setOpenNowOnly] = useState(() => searchParams.get('openNow') === '1');
+  const [sortBy, setSortBy] = useState<SortOption>(() => readSortOption(searchParams.get('sort')));
+
+  // 由其他頁面帶參數導航進來（例如首頁的 /bars?type=cigar）時，同步更新篩選條件
+  useEffect(() => {
+    const params = new URLSearchParams(paramsKey);
+    setKeyword(params.get('q') ?? '');
+    setDistrict(params.get('district') ?? 'all');
+    setType(params.get('type') ?? 'all');
+    setOpenNowOnly(params.get('openNow') === '1');
+    setSortBy(readSortOption(params.get('sort')));
+  }, [paramsKey]);
 
   useEffect(() => {
     let cancelled = false;

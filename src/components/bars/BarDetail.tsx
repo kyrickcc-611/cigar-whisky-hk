@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Clock,
@@ -24,10 +24,13 @@ import type { Bar } from '@/types';
 
 type LoadState = 'loading' | 'ready' | 'missing' | 'error';
 
-/** 酒吧詳情（純 client 讀取 Firestore；下架酒吧會被 Security Rules 擋住 → 視為不存在） */
+/**
+ * 酒吧詳情（純 client 讀取 Firestore；下架酒吧會被 Security Rules 擋住 → 視為不存在）。
+ * 靜態匯出下網址為 /bars/detail?id=<barId>，故以 useSearchParams() 取 id。
+ */
 export function BarDetail() {
-  const params = useParams();
-  const barId = typeof params?.id === 'string' ? params.id : undefined;
+  const searchParams = useSearchParams();
+  const barId = searchParams.get('id') ?? undefined;
 
   const [bar, setBar] = useState<Bar | null>(null);
   const [state, setState] = useState<LoadState>('loading');

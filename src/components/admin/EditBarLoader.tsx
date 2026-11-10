@@ -2,20 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { BarForm } from '@/components/admin/BarForm';
 import { getBarById } from '@/lib/repositories/bars';
 import { barToFormValues, type BarFormValues } from '@/lib/validators/bar';
 
 /**
- * 編輯酒吧。
+ * 編輯酒吧的 client 載入器。
  * 用 client component 直接讀 Firestore（純 client SDK 架構），
  * 讀取失敗（無權限／已刪除）時顯示提示而不是白畫面。
+ * 靜態匯出下網址為 /admin/bars/edit?id=<barId>，故以 useSearchParams() 取 id。
  */
-export default function EditBarPage() {
-  const params = useParams();
-  const barId = typeof params?.id === 'string' ? params.id : undefined;
+export function EditBarLoader() {
+  const searchParams = useSearchParams();
+  const barId = searchParams.get('id') ?? undefined;
 
   const [values, setValues] = useState<BarFormValues | null>(null);
   const [barName, setBarName] = useState('');

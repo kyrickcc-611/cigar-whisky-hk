@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -13,15 +13,23 @@ import { useAuth } from '@/hooks/useAuth';
  */
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { user, profile, loading, isSuperAdmin, isConfigured, configError } = useAuth();
 
-  // 未登入 → 導向登入頁，成功後返回原本想去的後台頁面
+  // 未登入 → 導向登入頁，成功後返回原本想去的後台頁面（含 query 參數，例如 ?id=xxx）。
+  // 用 window.location 而非 usePathname，是為了保留 search 且避免靜態匯出時的 Suspense 限制。
   useEffect(() => {
     if (!isConfigured || loading || user) return;
-    const redirect = pathname || '/admin';
+
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+    const { pathname: rawPath, search } = window.location;
+    const path =
+      basePath && rawPath.startsWith(basePath)
+        ? rawPath.slice(basePath.length) || '/'
+        : rawPath;
+    const redirect = `${path}${search}` || '/admin';
+
     router.replace(`/login?redirect=${encodeURIComponent(redirect)}`);
-  }, [isConfigured, loading, user, pathname, router]);
+  }, [isConfigured, loading, user, router]);
 
   if (!isConfigured) {
     return (

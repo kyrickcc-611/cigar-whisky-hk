@@ -80,7 +80,7 @@ export default function AdminDashboardPage() {
               <li key={bar.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <Link
-                    href={`/admin/bars/${bar.id}/edit`}
+                    href={`/admin/bars/edit?id=${bar.id}`}
                     className="truncate text-sm text-foreground hover:text-brand-300"
                   >
                     {bar.name || '（未命名）'}

@@ -214,7 +214,7 @@ export default function AdminBarsPage() {
                 <tr key={bar.id}>
                   <td className="py-2.5 pr-3">
                     <Link
-                      href={`/admin/bars/${bar.id}/edit`}
+                      href={`/admin/bars/edit?id=${bar.id}`}
                       className="text-foreground transition-colors hover:text-brand-300"
                     >
                       {bar.name || '（未命名）'}
@@ -239,7 +239,7 @@ export default function AdminBarsPage() {
                   <td className="py-2.5">
                     <div className="flex flex-wrap justify-end gap-1.5">
                       <Link
-                        href={`/admin/bars/${bar.id}/edit`}
+                        href={`/admin/bars/edit?id=${bar.id}`}
                         className="btn-secondary px-2 py-1 text-xs"
                       >
                         <Pencil className="h-3.5 w-3.5" />

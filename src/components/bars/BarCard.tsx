@@ -18,7 +18,7 @@ export function BarCard({ bar }: { bar: Bar }) {
 
   return (
     <Link
-      href={`/bars/${bar.id}`}
+      href={`/bars/detail?id=${bar.id}`}
       className="card group flex flex-col overflow-hidden p-0 transition-colors hover:border-brand-500/60"
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-raised">
