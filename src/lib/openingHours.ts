@@ -1,4 +1,4 @@
-import { JS_DAY_TO_KEY } from './constants';
+import { DEFAULT_OPENING_HOURS, JS_DAY_TO_KEY, WEEKDAYS } from './constants';
 import type { Bar, DayHours, OpeningHours, WeekdayKey } from '@/types';
 
 /** 'HH:mm' 轉成分鐘數；格式錯誤回傳 null */
@@ -71,4 +71,48 @@ export function formatDayHours(day: DayHours | undefined | null): string {
 /** 取得今日營業時間（詳情頁「今日」高亮用） */
 export function getDayHours(hours: OpeningHours, date: Date = new Date()): DayHours | null {
   return hours[getWeekdayKey(date)] ?? null;
+}
+
+/** 深層複製營業時間，避免表單修改污染 DEFAULT_OPENING_HOURS 常數 */
+export function cloneOpeningHours(hours: OpeningHours): OpeningHours {
+  return {
+    mon: { ...hours.mon },
+    tue: { ...hours.tue },
+    wed: { ...hours.wed },
+    thu: { ...hours.thu },
+    fri: { ...hours.fri },
+    sat: { ...hours.sat },
+    sun: { ...hours.sun },
+  };
+}
+
+/**
+ * 補齊缺失的星期（舊資料、或直接在 Console 手動建立的文件可能不完整）。
+ * 缺漏的日子一律視為「休息」，避免畫面出現 undefined。
+ */
+export function normalizeOpeningHours(hours: OpeningHours | null | undefined): OpeningHours {
+  const base = cloneOpeningHours(DEFAULT_OPENING_HOURS);
+  if (!hours) return base;
+  return {
+    mon: { ...base.mon, ...hours.mon },
+    tue: { ...base.tue, ...hours.tue },
+    wed: { ...base.wed, ...hours.wed },
+    thu: { ...base.thu, ...hours.thu },
+    fri: { ...base.fri, ...hours.fri },
+    sat: { ...base.sat, ...hours.sat },
+    sun: { ...base.sun, ...hours.sun },
+  };
+}
+
+/** 一週摘要（列表卡片用），例如「每日 18:00 – 02:00」 */
+export function formatWeekSummary(hours: OpeningHours): string {
+  const openDays = WEEKDAYS.map((weekday) => hours[weekday.key]).filter((day) => !day.closed);
+
+  if (openDays.length === 0) return '每日休息';
+  if (openDays.length === 7) {
+    const first = openDays[0];
+    const sameTime = openDays.every((day) => day.open === first.open && day.close === first.close);
+    return sameTime ? `每日 ${first.open} – ${first.close}` : '每日營業（時間各異）';
+  }
+  return `每週 ${openDays.length} 日營業`;
 }

@@ -8,6 +8,7 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { useAuth } from '@/hooks/useAuth';
 import { registerWithEmail } from '@/lib/firebase/auth';
 import { getAuthErrorMessage } from '@/lib/firebase/authErrors';
+import { isGoogleLoginEnabled } from '@/lib/firebase/client';
 import {
   registerSchema,
   validateForm,
@@ -205,13 +206,17 @@ export function RegisterForm() {
         </button>
       </form>
 
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-surface-border" />
-        <span className="text-xs text-zinc-500">或</span>
-        <span className="h-px flex-1 bg-surface-border" />
-      </div>
+      {isGoogleLoginEnabled ? (
+        <>
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-surface-border" />
+            <span className="text-xs text-zinc-500">或</span>
+            <span className="h-px flex-1 bg-surface-border" />
+          </div>
 
-      <GoogleSignInButton disabled={!isConfigured} onError={setFormError} />
+          <GoogleSignInButton disabled={!isConfigured} onError={setFormError} />
+        </>
+      ) : null}
 
       <p className="text-center text-sm text-zinc-400">
         已有帳號？

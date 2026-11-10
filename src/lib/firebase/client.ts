@@ -26,6 +26,15 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId,
 );
 
+/**
+ * 是否顯示「使用 Google 帳號登入」按鈕。
+ * Google provider 必須先在 Firebase Console → Authentication → Sign-in method 啟用，
+ * 否則按下只會得到 auth/operation-not-allowed。啟用後在 .env.local 設
+ * NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=true 即會顯示（記得重啟 dev server）。
+ */
+export const isGoogleLoginEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN === 'true';
+
 let cachedApp: FirebaseApp | null = null;
 let cachedAuth: Auth | null = null;
 let cachedDb: Firestore | null = null;

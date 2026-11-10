@@ -1,15 +1,30 @@
 import type { Metadata } from 'next';
-import { ComingSoon } from '@/components/ui/ComingSoon';
+import { BarsBrowser } from '@/components/bars/BarsBrowser';
 
 export const metadata: Metadata = { title: '尋找酒吧' };
 
-/** Phase 3 會實作：關鍵字搜尋、地區／類型篩選、距離排序、地圖模式 */
-export default function BarsPage() {
+interface BarsPageProps {
+  searchParams?: { q?: string; district?: string; type?: string; openNow?: string };
+}
+
+/** 酒吧列表（首頁的搜尋表單及快速連結會帶 query 參數到這裡） */
+export default function BarsPage({ searchParams }: BarsPageProps) {
   return (
-    <ComingSoon
-      phase="Phase 3"
-      title="酒吧列表與搜尋即將推出"
-      description="這裡將會有關鍵字搜尋、地區及類型篩選、即時營業狀態、以手機定位計算距離並排序，以及地圖模式顯示附近酒吧。"
-    />
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold text-foreground">尋找酒吧</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+          收錄全港雪茄吧及威士忌吧。以地區、類型、營業狀態篩選，或直接搜尋名稱及特色。
+        </p>
+      </header>
+
+      <BarsBrowser
+        initialKeyword={searchParams?.q ?? ''}
+        initialDistrict={searchParams?.district ?? 'all'}
+        initialType={searchParams?.type ?? 'all'}
+        initialOpenNow={searchParams?.openNow === '1'}
+      />
+    </div>
   );
 }
+

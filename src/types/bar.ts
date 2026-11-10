@@ -27,12 +27,16 @@ export interface DayHours {
 /** 一週七日的營業時間 */
 export type OpeningHours = Record<WeekdayKey, DayHours>;
 
-/** 上傳到 Firebase Storage 的圖片（同時保存 path 以便日後刪除） */
+/**
+ * 圖片參照。
+ * 現階段（Firebase Storage 需升級 Blaze）以後台「貼圖片網址」方式填寫，
+ * 此時 path 為 null；日後改用 Storage 上傳時才會有 path（用於刪除檔案）。
+ */
 export interface StoredImage {
-  /** 可公開讀取的 download URL */
+  /** 可公開讀取的圖片網址（http/https） */
   url: string;
-  /** Storage 內的路徑，例如 bars/abc/cover.jpg */
-  path: string;
+  /** Storage 內的路徑，例如 bars/abc/cover.jpg；貼網址時為 null */
+  path: string | null;
 }
 
 /**

@@ -15,7 +15,7 @@
 | 前端 | Next.js 14（App Router）、TypeScript、Tailwind CSS 3 |
 | 認證 | Firebase Authentication（電郵密碼 + Google） |
 | 資料庫 | Cloud Firestore |
-| 檔案 | Firebase Storage |
+| 檔案 | 圖片以「貼網址」方式儲存（Firebase Storage 需 Blaze 方案，待升級後可一鍵切換） |
 | 地圖 | Google Maps JavaScript API（`@vis.gl/react-google-maps`） |
 | 驗證 | Zod（表單與資料驗證） |
 | 部署 | Vercel |
@@ -40,6 +40,7 @@
    - 一般用戶不可寫 `bars`，只有 `role == 'superadmin'` 可以
    - 投票只能寫 `bars/{barId}/votes/{uid}`，值只能是 1 / -1
    - 上傳只可寫入 `users/{uid}/...` 及 `bars/...`（bars 僅 admin）
+     ⚠️ Storage 需 Blaze 方案，目前暫未啟用；相片改以「貼網址」輸入（見「圖片策略」）
 
 代價與限制（已評估並接受）：
 
@@ -103,8 +104,9 @@ npm run typecheck # 只做型別檢查
 
 1. 左側 **Build → Authentication → 開始使用**
 2. **Sign-in method** 啟用：
-   - **電子郵件/密碼**（Email/Password）：必須
-   - **Google**：可選（選一個支援電郵即可）
+   - **電子郵件/密碼**（Email/Password）：必須（已完成）
+   - **Google**：可選；啟用後把 `.env.local` 的 `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN` 設為 `true`
+     （預設 `false`，登入頁不會顯示 Google 按鈕，避免按下後報 `auth/operation-not-allowed`）
 3. 到 **Settings → Authorized domains**（授權網域）確認有 `localhost`；
    日後部署 Vercel 後要把 `xxx.vercel.app` 及自訂網域加入
 
@@ -127,31 +129,42 @@ npm run typecheck # 只做型別檢查
 | `messagingSenderId` | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` |
 | `appId` | `NEXT_PUBLIC_FIREBASE_APP_ID` |
 
-### 5. 部署 Security Rules（Phase 1 完成後）
+### 5. Security Rules（已部署）
 
-`firestore.rules` 與 `storage.rules` 會在 Phase 1 建立。部署方式二選一：
+`firestore.rules` 已部署至 Firestore（`asia-east2`），`firestore.indexes.json` 亦已同步。部署方式二選一：
 
 **方法 A：Firebase CLI（建議）**
 
 ```bash
 npx firebase-tools login
 npx firebase-tools use --add          # 選擇你的專案，別名例如 default
-npx firebase-tools deploy --only firestore:rules,storage:rules,firestore:indexes
+npx firebase-tools deploy --only firestore:rules,firestore:indexes
 ```
 
 **方法 B：Console 手動貼上**
 
 - Firestore Database → **規則** → 貼上 `firestore.rules` 內容 → 發佈
-- Storage → **規則** → 貼上 `storage.rules` 內容 → 發佈
 
-### 6. 建立 Super Admin（Phase 1 完成後）
+> ⚠️ `storage.rules` 已寫好但**暫未部署**：Firebase Storage 需要 Blaze 方案才能建立 bucket，
+> 在 Spark 方案下 Storage 頁面會要求升級。現階段圖片改為「貼網址」（見下方「圖片策略」）。
 
-1. 先在網站註冊一個帳號並完成電郵驗證
-2. 到 Firebase Console → **Firestore → users → 你的 uid**
-3. 把 `role` 欄位由 `user` 改成 `superadmin`
-4. 重新登入（或稍等 token 更新），即可進入 `/admin`
+### 6. 建立 Super Admin（已提供腳本）
 
-> 亦可用 `scripts/grant-admin.mjs`（需要 service account），適合正式環境。詳見 Phase 1 說明。
+Security Rules 禁止任何用戶（包括自己）把 `role` 改成 `superadmin`，所以要由「專案擁有者」身份寫入。
+
+1. 先在網站註冊並登入一次（登入後才會自動建立 `users/{uid}` 文件）
+2. 在專案根目錄執行：
+
+```bash
+node scripts/grant-admin.mjs your@email.com            # 設為 superadmin
+node scripts/grant-admin.mjs your@email.com --revoke   # 收回權限
+```
+
+腳本會讀取本機 Firebase CLI 的登入憑證（需先執行過 `firebase login`），換取 owner access token 後用
+REST 寫入 `users/{uid}.role`，**不需要 service account 私鑰**。
+
+手動替代方案：Firebase Console → **Firestore → users → 你的 uid** → 把 `role` 由 `user` 改成 `superadmin`，
+重新整理頁面即可（`AuthProvider` 會即時訂閱 profile，選單會自動出現「管理後台」）。
 
 ---
 
@@ -192,18 +205,20 @@ ver1 20261110/
    │  ├─ layout.tsx            # 全域佈局（頁首／頁尾／metadata）
    │  ├─ page.tsx              # 首頁
    │  ├─ globals.css           # Tailwind + 主題 + 共用 class
-   │  ├─ bars/                 # 列表（Phase 3）
-   │  ├─ login/ register/      # 認證（Phase 1）
-   │  └─ account/ admin/       # 個人頁（Phase 6）／後台（Phase 2、7）
+   │  ├─ bars/                 # 列表 + /bars/[id] 詳情（Phase 3 部分完成）
+   │  ├─ login/ register/ forgot-password/   # 認證（Phase 1 完成）
+   │  └─ admin/                # 後台：儀表板、酒吧管理、新增／編輯（Phase 2 完成）
    ├─ components/
    │  ├─ layout/               # SiteHeader、SiteFooter、UserMenu
    │  ├─ ui/                   # 通用元件（ComingSoon…）
-   │  ├─ bars/                 # BarCard、BarFilters、BarMap…（Phase 3）
+   │  ├─ bars/                 # BarCard、BarsBrowser、BarDetail
    │  ├─ reviews/              # 感想與相片上傳（Phase 5）
-   │  └─ admin/                # 後台表單、統計卡（Phase 2、7）
+   │  └─ admin/                # AdminGuard、BarForm、ImageUrlField
    ├─ lib/
-   │  ├─ firebase/client.ts    # Firebase 初始化（lazy、單例、env 檢查）
-   │  ├─ repositories/         # （Phase 1+）所有 Firestore 讀寫集中在這裡
+   │  ├─ firebase/             # client.ts、auth.ts、authErrors.ts
+   │  ├─ repositories/         # Firestore 讀寫：users.ts、bars.ts
+   │  ├─ services/images.ts    # 圖片抽象（現為貼網址，日後可換 Storage）
+   │  ├─ validators/           # Zod 表單驗證：auth.ts、bar.ts
    │  ├─ constants.ts          # 地區、類型、標籤、營業時間預設
    │  ├─ distance.ts           # Haversine 距離 + 顯示格式
    │  ├─ openingHours.ts       # 「現在營業中」計算（支援跨午夜）
@@ -250,14 +265,42 @@ reports/{reportId}                 → Phase 8
 **最終顯示的 Like 數 = `likes + likesOffset`**
 如此 Super Admin 手動加減的數字不會被下一個用戶投票覆蓋。
 
+---
+
+## 圖片策略（ImageRef）
+
+Firebase Storage 需要 Blaze 方案才能建立 bucket，故現階段後台以「貼圖片網址」加入相片：
+
+- 資料格式：`coverImage { url, path }`、`images [{ url, path }]`；貼網址時 `path` 為 `null`
+- 顯示前一律經 `resolveImageUrl()`（`src/lib/services/images.ts`）過濾，只接受 `http:` / `https:`，避免 XSS 與破圖
+- 日後升級 Blaze：只需在該檔案加入 `uploadImage()`（回傳 `{ url, path }`）、把 `IMAGE_UPLOAD_ENABLED` 改為 `true`，
+  後台表單就會多一個上傳按鈕，其他頁面完全不用改
+
+---
+
+## 後台管理（/admin）
+
+| 路徑 | 功能 |
+|---|---|
+| `/admin` | 儀表板：酒吧總數、已公開／已下架數量、最近新增 |
+| `/admin/bars` | 清單：關鍵字搜尋、狀態篩選、上架／下架、刪除 |
+| `/admin/bars/new` | 新增酒吧（基本資料、地址與位置、營業時間、介紹與特色、圖片） |
+| `/admin/bars/[id]/edit` | 編輯（同一份 `BarForm`） |
+
+- 權限雙重保護：`AdminGuard` 只負責 UX（未登入會轉去 `/login?redirect=/admin`），
+  真正防線是 `firestore.rules` 的 `isSuperAdmin()`
+- 表單驗證（`src/lib/validators/bar.ts`）：名稱 1–80 字、類型／地區／標籤白名單、
+  香港座標範圍（緯度 22.15–22.56、經度 113.83–114.44）、7 日 `HH:mm` 營業時間（允許跨午夜）、最多 8 張圖片
+- 公開頁面只會讀取 `isActive == true` 的酒吧；下架等同 soft delete，不會遺失資料
+
 ## 開發階段
 
 | 階段 | 內容 | 狀態 |
 |---|---|---|
 | Phase 0 | 專案架構、型別、工具函數、主題 | ✅ 完成 |
-| Phase 1 | Firebase 設定、規則、登入／註冊、AuthProvider | ⏳ |
-| Phase 2 | Admin 酒吧 CRUD + 相片上傳 | ⏳ |
-| Phase 3 | 列表、搜尋、篩選、地圖、詳情頁 | ⏳ |
+| Phase 1 | Firebase 設定、規則、登入／註冊、AuthProvider | ✅ 完成 |
+| Phase 2 | Admin 酒吧 CRUD（圖片以貼網址方式加入） | ✅ 完成（Storage 上傳待 Blaze） |
+| Phase 3 | 列表、搜尋、篩選、地圖、詳情頁 | 🚧 列表／篩選／詳情已完成；地圖模式、距離排序待辦 |
 | Phase 4 | Like / Dislike 投票（transaction） | ⏳ |
 | Phase 5 | 感想 + 相片牆 + 評分聚合 | ⏳ |
 | Phase 6 | 收藏、個人頁、貼文動態 | ⏳ |
@@ -332,6 +375,7 @@ git push
    - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
    - `NEXT_PUBLIC_FIREBASE_APP_ID`
    - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+   - `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN`（設 `true` 才顯示 Google 登入按鈕）
 4. **Deploy**
 5. 部署完成後，回到 Firebase Console：
    - **Authentication → Settings → Authorized domains** 加入 `xxx.vercel.app`（及自訂網域）
@@ -370,7 +414,7 @@ Next.js 14.2 官方支援 Node 18.17+ / 20 / 22。本機為 Node 24，Phase 0 �
 |---|---|
 | Authentication | 電郵／密碼登入不限數量 |
 | Firestore | 每日 50,000 次讀取、20,000 次寫入、20,000 次刪除、1 GiB 儲存 |
-| Storage | 5 GB 儲存、每日 1 GB 下載 |
+| Storage | ⚠️ 需要 Blaze 方案才能啟用；本專案暫未使用（圖片以網址儲存） |
 | Google Maps | 每月 $200 美元等值免費額度（需綁信用卡） |
 
 超過 Spark 額度需升級 Blaze（按用量計費）。
@@ -379,7 +423,7 @@ Next.js 14.2 官方支援 Node 18.17+ / 20 / 22。本機為 Node 24，Phase 0 �
 
 - `firestore.rules` / `storage.rules` 未部署前，資料庫是「正式模式」＝全部禁止讀寫，網站會顯示空白／錯誤，屬正常現象
 - 切勿把 service account JSON 或任何私鑰放入 `NEXT_PUBLIC_*` 變數
-- 圖片上傳限制 5 MB、只接受 jpeg / png / webp（在 Storage Rules 強制執行）
+- 圖片以網址形式輸入，前端只接受 `http` / `https`；`storage.rules` 已預備 5 MB、jpeg / png / webp 限制，待 Blaze 升級後部署
 
 ---
 

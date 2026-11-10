@@ -120,9 +120,9 @@ export default function HomePage() {
           <ul className="mt-3 space-y-2 text-xs text-zinc-400">
             {[
               { label: 'Phase 0：專案架構、型別、工具函數', done: true },
-              { label: 'Phase 1：Firebase 設定 + 登入 / 註冊', done: false },
-              { label: 'Phase 2：Admin 酒吧 CRUD + 相片上傳', done: false },
-              { label: 'Phase 3：列表、搜尋、地圖、詳情頁', done: false },
+              { label: 'Phase 1：Firebase 設定 + 登入 / 註冊', done: true },
+              { label: 'Phase 2：Admin 酒吧 CRUD（圖片貼網址）', done: true },
+              { label: 'Phase 3：地圖模式、距離排序（列表／詳情已完成）', done: false },
               { label: 'Phase 4：Like / Dislike 投票', done: false },
             ].map((item) => (
               <li key={item.label} className="flex items-center gap-2">
